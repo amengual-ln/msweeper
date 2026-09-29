@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vercel/
+.sites-runtime/
+test-results/
+*.local
+.env*
+!.env.example
