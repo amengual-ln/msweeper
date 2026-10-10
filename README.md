@@ -29,12 +29,16 @@ La configuración está incluida en `vercel.json`. También se puede desplegar c
 ## Controles
 
 - Toque/clic: descubrir una casilla.
-- Mantener pulsado, clic derecho o modo **Marcar**: alternar bandera.
+- Clic derecho o modo **Marcar**: alternar bandera.
 - Arrastrar: explorar el tablero en cualquier dirección.
 - Pellizcar, rueda o botones +/−: zoom.
 - Mira: volver a la primera casilla descubierta.
 - Tocar un número con suficientes banderas alrededor: descubrir los vecinos restantes. Las banderas incorrectas pueden provocar una derrota.
 - Teclado con el tablero enfocado: flechas para seleccionar, Enter para descubrir, F para marcar, Home para regresar al origen, +/− para zoom.
+
+## Apariencia
+
+El tema sigue al sistema por defecto y se actualiza si cambia mientras jugás. El botón de sol/luna del header permite elegir claro u oscuro. La elección se guarda en este navegador y prevalece sobre el sistema en próximas visitas. Cambiar el tema no reinicia la partida.
 
 ## Motor
 
