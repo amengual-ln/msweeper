@@ -66,6 +66,19 @@ test('cancelling a touch never reveals a cell', () => {
     h.pointer('pointerup', 195, 300); h.flush(); assert.equal(h.board.game.score, 0)
   } finally { h.board.destroy() }
 })
+test('changing theme redraws without modifying the game or camera', () => {
+  const h = harness()
+  try {
+    h.pointer('pointerdown', 195, 300); h.pointer('pointerup', 195, 300); h.flush()
+    const game = h.board.game, before = { ...h.state() }
+    h.board.setTheme('dark'); h.flush()
+    assert.equal(h.board.game, game)
+    assert.deepEqual(h.state(), before)
+    h.board.reset(); h.flush()
+    h.board.setTheme('light'); h.flush()
+    assert.equal(h.board.game.status, 'ready')
+  } finally { h.board.destroy() }
+})
 test('long press flags once and consumes the subsequent touch contextmenu and release', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = harness()

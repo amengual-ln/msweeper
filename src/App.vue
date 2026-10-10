@@ -3,6 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Board } from './board'
 import type { BoardState, Mode } from './board'
 import Icon from './Icon.vue'
+import { createTheme } from './theme'
+import type { Theme } from './theme'
+const theme = ref<Theme>(document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+let themeControl: ReturnType<typeof createTheme> | undefined
 const canvas = ref<HTMLCanvasElement>()
 const help = ref<HTMLDialogElement>()
 const restart = ref<HTMLDialogElement>()
@@ -24,8 +28,16 @@ function requestRestart() {
 onMounted(() => {
   try { board = new Board(canvas.value!, next => { state.value = next }) }
   catch (e) { error.value = e instanceof Error ? e.message : 'No pudimos iniciar el tablero.' }
+  // Accessing localStorage itself can throw in restricted browser contexts.
+  const storage = { getItem: (key: string) => localStorage.getItem(key), setItem: (key: string, value: string) => localStorage.setItem(key, value) }
+  themeControl = createTheme(window.matchMedia('(prefers-color-scheme: dark)'), storage, next => {
+    theme.value = next
+    document.documentElement.dataset.theme = next
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#1b2027' : '#ffffff')
+    board?.setTheme(next)
+  })
 })
-onBeforeUnmount(() => board?.destroy())
+onBeforeUnmount(() => { themeControl?.destroy(); board?.destroy() })
 </script>
 <template>
   <main class="game-shell">
@@ -33,14 +45,14 @@ onBeforeUnmount(() => board?.destroy())
       <div class="brand" aria-label="Mines infinito"><span>mines<span class="infinity">∞</span></span><span class="brand-sub">BUSCAMINAS INFINITO</span></div>
       <div class="score" aria-label="Puntuación"><strong data-testid="score">{{ formattedScore }}</strong><span>casillas descubiertas</span></div>
       <div class="header-actions">
+        <button class="icon-button theme-toggle" role="switch" :aria-checked="theme === 'dark'" aria-label="Modo oscuro" :title="theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'" @click="themeControl?.toggle()"><Icon :name="theme === 'dark' ? 'sun' : 'moon'" /></button>
         <button class="icon-button" aria-label="Cómo jugar" title="Cómo jugar" @click="help?.showModal()"><Icon name="help" /></button>
         <button class="icon-button" aria-label="Nueva partida" title="Nueva partida" @click="requestRestart"><Icon name="reset" /></button>
       </div>
     </header>
     <section class="play-area" aria-label="Tablero infinito">
-      <canvas ref="canvas" class="board" tabindex="0" aria-label="Tablero de buscaminas. Arrastrá para explorar. Con teclado, usá las flechas para elegir casilla, Enter para descubrir y F para poner bandera." aria-describedby="board-instructions">Tu navegador necesita soporte de Canvas para jugar.</canvas>
+      <canvas ref="canvas" class="board" tabindex="0" aria-label="Tablero de buscaminas. Arrastrá para explorar. Con teclado, usá las flechas para elegir casilla, Enter para descubrir y F para poner bandera.">Tu navegador necesita soporte de Canvas para jugar.</canvas>
       <div class="board-fade" aria-hidden="true"></div>
-      <Transition name="fade"><div v-if="state.status === 'ready' && !error" class="start-hint"><span>Un toque para empezar</span><span>La primera casilla es segura.</span></div></Transition>
       <div class="coordinates" aria-hidden="true">{{ state.position.x }} <span>/</span> {{ state.position.y }}</div>
       <div v-if="state.busy" class="working" role="status">Descubriendo…</div>
       <div v-if="error" class="error-card" role="alert">{{ error }}</div>
@@ -64,7 +76,6 @@ onBeforeUnmount(() => board?.destroy())
         <span class="separator"></span>
         <button class="icon-button home" aria-label="Volver al inicio del tablero" title="Volver al inicio" @click="board?.home()"><Icon name="home" /></button>
       </div>
-      <p id="board-instructions" class="instructions"><span class="touch-hint">Arrastrá para explorar <span>·</span> Mantené para marcar</span><span class="mouse-hint">Arrastrá para explorar <span>·</span> Clic derecho para marcar</span></p>
     </footer>
     <div class="zoom-controls" role="group" aria-label="Zoom del tablero"><button class="icon-button" aria-label="Alejar" :disabled="state.zoom <= 73" @click="board?.zoom(1 / 1.15)"><Icon name="minus" /></button><span>{{ state.zoom }}%</span><button class="icon-button" aria-label="Acercar" :disabled="state.zoom >= 164" @click="board?.zoom(1.15)"><Icon name="plus" /></button></div>
     <p class="sr-only" aria-live="polite" aria-atomic="true">{{ state.announcement }}</p>
@@ -72,7 +83,7 @@ onBeforeUnmount(() => board?.destroy())
       <button class="icon-button dialog-close" aria-label="Cerrar ayuda" @click="help?.close()"><Icon name="close" /></button>
       <span class="dialog-eyebrow">MINES ∞</span><h2 id="help-title">Un clásico, sin bordes.</h2>
       <p>Descubrí todas las casillas que puedas sin tocar una mina. Cada número indica cuántas minas hay en sus ocho casillas vecinas.</p>
-      <dl class="help-list"><div><dt>Descubrir</dt><dd>Tocá una casilla. El primer toque siempre abre una zona segura.</dd></div><div><dt>Marcar</dt><dd>Mantené pulsado, usá el modo Marcar o hacé clic derecho.</dd></div><div><dt>Explorar</dt><dd>Arrastrá en cualquier dirección. Pellizcá con dos dedos o usá la rueda para cambiar el zoom.</dd></div><div><dt>Abrir alrededor</dt><dd>Tocá un número cuando tenga esa cantidad de banderas alrededor. Si están mal colocadas, podés tocar una mina.</dd></div></dl>
+      <dl class="help-list"><div><dt>Descubrir</dt><dd>Tocá una casilla. El primer toque siempre abre una zona segura.</dd></div><div><dt>Marcar</dt><dd>Usá el modo Marcar o hacé clic derecho.</dd></div><div><dt>Explorar</dt><dd>Arrastrá en cualquier dirección. Pellizcá con dos dedos o usá la rueda para cambiar el zoom.</dd></div><div><dt>Abrir alrededor</dt><dd>Tocá un número cuando tenga esa cantidad de banderas alrededor. Si están mal colocadas, podés tocar una mina.</dd></div></dl>
       <p class="help-note">No hay meta final ni garantía de resolver todo sin adivinar. La partida termina al tocar una mina. Si recargás la página, empezás de nuevo.</p>
       <p class="keyboard-note">Teclado: flechas para moverte, Enter para descubrir, F para marcar y Home para volver al inicio.</p>
       <button class="primary-button" @click="help?.close()">A jugar</button>

@@ -1,12 +1,27 @@
 import { Minefield, keyOf } from './engine'
 import type { Cell } from './engine'
+import type { Theme } from './theme'
 export type Mode = 'reveal' | 'flag'
 type Point = { x: number; y: number; startX: number; startY: number; dragged: boolean }
 export type BoardState = { score: number; flags: number; status: Minefield['status']; zoom: number; busy: boolean; position: Cell; announcement: string }
-const COLORS = ['', '#4269b0', '#378575', '#b56563', '#7863a7', '#9c784c', '#418b95', '#727b87', '#424951']
+const PALETTES = {
+  light: {
+    background: '#ffffff', covered: '#eef0f3', grid: '#f0f2f5', flagged: '#e5eaf4', flag: '#596e95',
+    exploded: '#e06c64', mineCell: '#f5e5e3', mine: '#bf827c', wrongFlag: '#c76861', explodedMine: '#ffffff',
+    selected: '#324b72', origin: '#8798b3',
+    numbers: ['', '#4269b0', '#378575', '#b56563', '#7863a7', '#9c784c', '#418b95', '#727b87', '#424951'],
+  },
+  dark: {
+    background: '#1b2027', covered: '#2a313b', grid: '#252c35', flagged: '#344052', flag: '#a6b8d3',
+    exploded: '#b5645f', mineCell: '#453236', mine: '#c39792', wrongFlag: '#d3968f', explodedMine: '#f5e7e5',
+    selected: '#b0c0d8', origin: '#7e90ab',
+    numbers: ['', '#91acda', '#83baac', '#d49b96', '#b6a1d4', '#c9af85', '#82b8c1', '#a8b1be', '#c5cbd4'],
+  },
+}
 export class Board {
   game = new Minefield(crypto.getRandomValues(new Uint32Array(1))[0]!)
   mode: Mode = 'reveal'
+  private palette = PALETTES.light
   private ctx: CanvasRenderingContext2D
   private width = 0
   private height = 0
@@ -166,6 +181,10 @@ export class Board {
     this.cy = wy - (y - this.height / 2) / this.size
     this.invalidate(); this.emit()
   }
+  setTheme(theme: Theme) {
+    this.palette = PALETTES[theme]
+    this.invalidate()
+  }
   home() {
     this.cx = (this.game.origin?.x ?? 0) + 0.5
     this.cy = (this.game.origin?.y ?? 0) + 0.5
@@ -198,8 +217,8 @@ export class Board {
     this.invalidate(); this.emit()
   }
   private draw() {
-    const ctx = this.ctx, s = this.size
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, this.width, this.height)
+    const ctx = this.ctx, s = this.size, palette = this.palette
+    ctx.fillStyle = palette.background; ctx.fillRect(0, 0, this.width, this.height)
     const left = this.cx - this.width / (2 * s), top = this.cy - this.height / (2 * s)
     const endX = Math.ceil(left + this.width / s), endY = Math.ceil(top + this.height / s)
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
@@ -210,23 +229,23 @@ export class Board {
       const exploded = this.game.exploded?.x === x && this.game.exploded?.y === y
       const mine = this.game.status === 'lost' && this.game.isMine(x, y)
       if (value === undefined) {
-        ctx.fillStyle = exploded ? '#e06c64' : mine && !flag ? '#f5e5e3' : flag ? '#e5eaf4' : '#eef0f3'
+        ctx.fillStyle = exploded ? palette.exploded : mine && !flag ? palette.mineCell : flag ? palette.flagged : palette.covered
         ctx.beginPath(); ctx.roundRect(px + 1.5, py + 1.5, s - 3, s - 3, Math.max(3, s * .10)); ctx.fill()
       } else {
-        ctx.strokeStyle = '#f0f2f5'; ctx.lineWidth = .6
+        ctx.strokeStyle = palette.grid; ctx.lineWidth = .6
         ctx.strokeRect(px, py, s, s)
-        if (value) { ctx.fillStyle = COLORS[value]!; ctx.fillText(String(value), px + s / 2, py + s / 2 + 1) }
+        if (value) { ctx.fillStyle = palette.numbers[value]!; ctx.fillText(String(value), px + s / 2, py + s / 2 + 1) }
       }
-      if (flag) this.drawFlag(px + s / 2, py + s / 2, s, this.game.status === 'lost' && !mine ? '#c76861' : '#596e95')
-      else if (mine) this.drawMine(px + s / 2, py + s / 2, s, exploded ? '#ffffff' : '#bf827c')
+      if (flag) this.drawFlag(px + s / 2, py + s / 2, s, this.game.status === 'lost' && !mine ? palette.wrongFlag : palette.flag)
+      else if (mine) this.drawMine(px + s / 2, py + s / 2, s, exploded ? palette.explodedMine : palette.mine)
       if (this.selected?.x === x && this.selected?.y === y) {
-        ctx.strokeStyle = '#324b72'; ctx.lineWidth = 2
+        ctx.strokeStyle = palette.selected; ctx.lineWidth = 2
         ctx.strokeRect(px + 3, py + 3, s - 6, s - 6)
       }
     }
     if (this.game.status === 'ready') {
       const px = (.5 - left) * s, py = (.5 - top) * s
-      ctx.strokeStyle = '#8798b3'; ctx.lineWidth = 1.5
+      ctx.strokeStyle = palette.origin; ctx.lineWidth = 1.5
       ctx.beginPath(); ctx.roundRect(px - s / 2 + 2, py - s / 2 + 2, s - 4, s - 4, 5); ctx.stroke()
       ctx.beginPath(); ctx.moveTo(px - 5, py); ctx.lineTo(px + 5, py); ctx.moveTo(px, py - 5); ctx.lineTo(px, py + 5); ctx.stroke()
     }
